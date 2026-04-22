@@ -15,7 +15,8 @@ spec:
       containers:
       - name: python-app
         # Use your specific ECR URL here
-        image: 574246332259.dkr.ecr.us-east-1.amazonaws.com/my-python-service:latest
+        #image: 574246332259.dkr.ecr.us-east-1.amazonaws.com/my-python-service:latest
+        image: CONTAINER_IMAGE
         ports:
         - containerPort: 8000
 ---

@@ -5,7 +5,7 @@ app = FastAPI()
 
 @app.get("/")
 def read_root():
-    return {"status": "online", "environment": "Production", "version": "2.0"}
+    return {"status": "online :)", "environment": "Production", "version": "2.0"}
 
 @app.get("/health")
 def health_check():
