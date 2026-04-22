@@ -35,10 +35,13 @@ module "eks" {
       desired_size = 1
 
       instance_types = ["t3.medium"] # t3.medium is more stable for EKS than t3.micro
-
+      capacity_type  = "ON_DEMAND"
       ami_type = "AL2023_x86_64_STANDARD" #force amazon linux 2023
     }
   }
-
+  tags = {
+      Environment = "dev"
+      Project     = "MicroserviceCluster"
+  }
   enable_cluster_creator_admin_permissions = true
 }
