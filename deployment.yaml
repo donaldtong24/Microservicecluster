@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: python-microservice
+spec:
+  replicas: 2 # Desired State: Always have 2 copies running
+  selector:
+    matchLabels:
+      app: python-app
+  template:
+    metadata:
+      labels:
+        app: python-app
+    spec:
+      containers:
+      - name: python-app
+        # Use your specific ECR URL here
+        image: 574246332259.dkr.ecr.us-east-1.amazonaws.com/my-python-service:latest
+        ports:
+        - containerPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: python-service
+spec:
+  type: LoadBalancer # This tells AWS to create a physical Load Balancer
+  selector:
+    app: python-app
+  ports:
+    - protocol: TCP
+      port: 80        # The outside world hits Port 80
+      targetPort: 8000 # It routes to your container on Port 8000

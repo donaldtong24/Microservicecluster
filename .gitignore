@@ -1,0 +1,20 @@
+# Local terraform directories
+**/.terraform/*
+
+# .tfstate files (Contains secrets!)
+*.tfstate
+*.tfstate.*
+
+# Crash logs
+crash.log
+crash.*.log
+
+# Exclude sensitive vars files
+*.tfvars
+*.tfvars.json
+
+# Ignore binary files
+*.exe
+
+# Ignore specific file
+excludethis.txt
