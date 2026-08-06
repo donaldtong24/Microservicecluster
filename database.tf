@@ -79,6 +79,8 @@ resource "aws_db_instance" "postgres" {
 # in values-prod.yaml. Namespace must match the Helm release's namespace —
 # "default" here because none of the README's helm install commands pass -n.
 resource "kubernetes_secret" "db_credentials" {
+  depends_on = [time_sleep.wait_for_access_entry]
+
   metadata {
     name      = "python-microservice-db"
     namespace = "default"

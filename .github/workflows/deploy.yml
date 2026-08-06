@@ -37,17 +37,26 @@ jobs:
         echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
     - name: Update Kubeconfig
-      run: aws eks update-kubeconfig --name ${{ secrets.EKS_CLUSTER_NAME }} --region ${{ secrets.AWS_REGION }}
+      run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ secrets.AWS_REGION }}
 
-    - name: Deploy to EKS
+    - name: Set up Helm
+      uses: azure/setup-helm@v4
+      with:
+        version: v3.15.3
+
+    - name: Helm lint
       run: |
-        # We need to get the registry URL again or use the one from the login step
+        helm lint charts/python-microservice
+        helm template ci charts/python-microservice -f charts/python-microservice/values-prod.yaml > /dev/null
+
+    - name: Deploy to EKS via Helm
+      run: |
         REGISTRY=${{ steps.login-ecr.outputs.registry }}
         REPO=${{ env.ECR_REPOSITORY }}
         TAG=${{ github.sha }}
-        
-        # Swap the placeholder for the real image path
-        sed -i "s|CONTAINER_IMAGE|$REGISTRY/$REPO:$TAG|g" deployment.yaml
-        
-        # Apply the update
-        kubectl apply -f deployment.yaml
+
+        helm upgrade --install python-microservice charts/python-microservice \
+          -f charts/python-microservice/values-prod.yaml \
+          --set image.repository="$REGISTRY/$REPO" \
+          --set image.tag="$TAG" \
+          --wait --timeout 5m

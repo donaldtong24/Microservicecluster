@@ -12,6 +12,10 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.6"
     }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.13"
+    }
   }
 }
 
@@ -35,7 +39,19 @@ provider "helm" {
   }
 }
 
+# EKS access entries (module.eks.aws_eks_access_entry / aws_eks_access_policy_association)
+# report "created" as soon as the AWS API call returns, but the EKS control
+# plane's authorization layer can take up to ~30-60s to actually recognize
+# them. Without this, kubernetes/helm resources that race ahead fail with
+# "Unauthorized" even though the entry already exists.
+resource "time_sleep" "wait_for_access_entry" {
+  depends_on      = [module.eks]
+  create_duration = "45s"
+}
+
 resource "kubernetes_namespace" "monitoring" {
+  depends_on = [time_sleep.wait_for_access_entry]
+
   metadata {
     name = "monitoring"
   }
