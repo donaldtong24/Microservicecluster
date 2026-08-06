@@ -9,3 +9,11 @@ service:
 # this cluster, so the ServiceMonitor/PrometheusRule CRDs exist.
 monitoring:
   enabled: true
+
+# Populated by database.tf's kubernetes_secret.db_credentials.
+env:
+  - name: DATABASE_URL
+    valueFrom:
+      secretKeyRef:
+        name: python-microservice-db
+        key: DATABASE_URL
