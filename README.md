@@ -16,6 +16,7 @@ The infrastructure is designed for high availability and security, following AWS
 - **Resource Management:** Kubernetes Resource Requests and Limits set on the container.
 - **Templated Multi-Environment Deploys:** Helm chart (`charts/python-microservice`) with `values-dev.yaml` (1 replica, ClusterIP, lower limits) and `values-prod.yaml` (2 replicas, LoadBalancer) — same chart, two environments.
 - **Observability:** Prometheus + Grafana via the `kube-prometheus-stack` Helm chart (Terraform-managed, `monitoring.tf`). The app exposes `/metrics` (request counts, latency, Python runtime stats) via `prometheus-fastapi-instrumentator`, scraped through a `ServiceMonitor`. A `PrometheusRule` alerts on OOMKilled containers. CPU/memory dashboards come from kube-prometheus-stack's built-in Grafana dashboards.
+- **Persistence:** RDS Postgres (`database.tf`), private-subnet only, security group locked to the EKS node security group. `GET /visits` reads/writes a real counter row — not just a provisioned-and-unused database.
 
 ## 🛠️ Tech Stack
 - **Cloud:** AWS (EKS, ECR, VPC, IAM, ELB)
@@ -63,6 +64,26 @@ kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80
 ```
 
 On dev (`values-dev.yaml`, `monitoring.enabled: false`), the chart installs without the operator being present — useful for quick local iteration.
+
+## 🗄️ Database Setup
+
+`database.tf` provisions RDS Postgres and a Kubernetes Secret with the connection string; `values-prod.yaml` wires that secret into the app as `DATABASE_URL`. Locally, without `DATABASE_URL` set, `/visits` returns `{"error": "DATABASE_URL not configured"}` instead of crashing — verified end-to-end against a real local Postgres instance (table auto-created on startup, `/visits` incrementing 1 → 2 → 3 across repeated calls).
+
+```powershell
+# 1. Provision RDS (part of the same terraform apply as monitoring.tf)
+terraform apply
+
+# 2. Deploy the app — values-prod.yaml already points DATABASE_URL at the
+#    Secret database.tf creates
+helm upgrade --install python-microservice charts/python-microservice -f charts/python-microservice/values-prod.yaml
+
+# 3. Test it
+curl http://<load-balancer-hostname>/visits
+```
+
+## 🦊 GitLab CI (parallel pipeline)
+
+`.gitlab-ci.yml` runs the same app through a second CI/CD path, alongside the existing GitHub Actions workflow — build/push to ECR, `helm lint` + `helm template` as a gate, then `helm upgrade --install` using `values-prod.yaml` with the freshly built image tag. Requires these CI/CD variables in the GitLab project: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`, `ECR_REPOSITORY`, `EKS_CLUSTER_NAME`.
 
 ## 🚧 Challenges Overcome
 - **PowerShell Encoding:** Resolved AWS ECR login issues related to PowerShell string piping by implementing `.Trim()` and sub-expression handling.
