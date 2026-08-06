@@ -91,7 +91,30 @@ curl http://<load-balancer-hostname>/visits
 - **Network Isolation:** Debugged I/O timeouts by enabling public endpoint access while maintaining private subnet integrity for worker nodes.
 
 ## 🧹 Cleanup
-To avoid unnecessary costs, the environment is fully ephemeral:
+To avoid unnecessary costs, the environment is fully ephemeral. Delete the Helm release *before* the infrastructure — `terraform destroy` doesn't know about the AWS resources Kubernetes provisions on its own (see gotchas below):
 ```powershell
-kubectl delete -f deployment.yaml
+helm uninstall python-microservice
 terraform destroy
+```
+
+### ⚠️ Teardown gotchas
+If the Helm release isn't uninstalled first (or a prior teardown got interrupted), `terraform destroy` will fail partway through with `DependencyViolation` errors on the VPC's subnets/internet gateway. Cause: `values-prod.yaml`'s `Service type: LoadBalancer` makes Kubernetes' AWS cloud provider create a Classic ELB (and a security group for it) directly against the AWS API — entirely outside Terraform's state. If the EKS cluster gets destroyed first, both are orphaned and sit in the VPC blocking its deletion.
+
+Manual fix if this happens:
+```powershell
+# Find and delete the orphaned ELB
+aws elb describe-load-balancers --region us-east-1
+aws elb delete-load-balancer --load-balancer-name <name> --region us-east-1
+
+# Find and delete the security group it created (named k8s-elb-<lb-name>)
+aws ec2 describe-security-groups --region us-east-1 --filters "Name=vpc-id,Values=<vpc-id>"
+aws ec2 delete-security-group --group-id <sg-id> --region us-east-1
+
+# Then re-run
+terraform destroy
+```
+
+Separately, `terraform destroy` also refuses to delete the ECR repo while it still holds images, since `force_delete` isn't set on `aws_ecr_repository.my_app` in `main.tf`:
+```powershell
+aws ecr batch-delete-image --repository-name my-python-service --region us-east-1 --image-ids imageTag=<tag>
+```
