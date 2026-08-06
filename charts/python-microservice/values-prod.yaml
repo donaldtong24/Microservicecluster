@@ -1,0 +1,11 @@
+# Prod overrides: HA replica count, public LoadBalancer, defaults from values.yaml
+# already cover resources/probes — override here only what actually differs.
+replicaCount: 2
+
+service:
+  type: LoadBalancer
+
+# Assumes kube-prometheus-stack (monitoring.tf) is already installed in
+# this cluster, so the ServiceMonitor/PrometheusRule CRDs exist.
+monitoring:
+  enabled: true

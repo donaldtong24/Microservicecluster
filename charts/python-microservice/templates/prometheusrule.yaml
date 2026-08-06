@@ -1,0 +1,29 @@
+{{- if .Values.monitoring.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: python-microservice-alerts
+  labels:
+    {{- include "python-microservice.labels" . | nindent 4 }}
+spec:
+  groups:
+    - name: python-microservice.rules
+      rules:
+        - alert: PythonMicroservicePodOOMKilled
+          expr: >-
+            kube_pod_container_status_last_terminated_reason{
+              reason="OOMKilled",
+              namespace="{{ .Release.Namespace }}",
+              container="python-app"
+            } == 1
+          for: 0m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Pod {{`{{ $labels.pod }}`}} was OOMKilled"
+            description: >-
+              Container {{`{{ $labels.container }}`}} in pod {{`{{ $labels.pod }}`}}
+              (namespace {{`{{ $labels.namespace }}`}}) was terminated with
+              OOMKilled. Check charts/python-microservice resources.limits.memory —
+              currently {{ .Values.resources.limits.memory }}.
+{{- end }}

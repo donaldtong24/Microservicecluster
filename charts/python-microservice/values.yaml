@@ -1,0 +1,52 @@
+# Default values for python-microservice.
+# Overridden per environment by values-dev.yaml / values-prod.yaml.
+
+replicaCount: 2
+
+image:
+  repository: 574246332259.dkr.ecr.us-east-1.amazonaws.com/my-python-service
+  tag: latest
+  pullPolicy: IfNotPresent
+
+containerPort: 8000
+
+service:
+  type: LoadBalancer
+  port: 80
+  targetPort: 8000
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+
+probes:
+  path: /health
+  readiness:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  liveness:
+    initialDelaySeconds: 15
+    periodSeconds: 20
+
+# Extra environment variables for the container (e.g. DB connection info,
+# wired up in the RDS step of the extension plan). Empty by default.
+env: []
+# - name: DATABASE_URL
+#   valueFrom:
+#     secretKeyRef:
+#       name: python-microservice-db
+#       key: connection-string
+
+# ServiceMonitor + PrometheusRule (Prometheus Operator CRDs). Defaults to
+# false so this chart installs cleanly BEFORE kube-prometheus-stack exists
+# (monitoring.tf) — the CRDs don't exist until that release is applied.
+# Flip to true (see values-prod.yaml) once the operator is installed.
+monitoring:
+  enabled: false
+  # Namespace where kube-prometheus-stack's Prometheus is watching for
+  # ServiceMonitor/PrometheusRule objects — must match monitoring.tf.
+  namespace: monitoring
